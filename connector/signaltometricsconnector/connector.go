@@ -67,7 +67,7 @@ func (sm *signalToMetrics) ConsumeTraces(ctx context.Context, td ptrace.Traces) 
 
 					// The transform context is created from original attributes so that the
 					// OTTL expressions are also applied on the original attributes.
-					tCtx := ottlspan.NewTransformContextPtr(span, scopeSpan.Scope(), resourceSpan.Resource(), scopeSpan, resourceSpan)
+					tCtx := ottlspan.NewTransformContextPtr(resourceSpan, scopeSpan, span)
 					if md.Conditions != nil {
 						match, err := md.Conditions.Eval(ctx, tCtx)
 						if err != nil {
@@ -116,15 +116,14 @@ func (sm *signalToMetrics) ConsumeMetrics(ctx context.Context, m pmetric.Metrics
 					aggregate := func(dp any, dpAttrs pcommon.Map) error {
 						// The transform context is created from original attributes so that the
 						// OTTL expressions are also applied on the original attributes.
-						tCtx := ottldatapoint.NewTransformContextPtr(dp, metric, metrics, scopeMetric.Scope(), resourceMetric.Resource(), scopeMetric, resourceMetric)
+						tCtx := ottldatapoint.NewTransformContextPtr(resourceMetric, scopeMetric, metric, dp)
+						defer tCtx.Close()
 						if md.Conditions != nil {
 							match, err := md.Conditions.Eval(ctx, tCtx)
 							if err != nil {
-								tCtx.Close()
 								return fmt.Errorf("failed to evaluate conditions: %w", err)
 							}
 							if !match {
-								tCtx.Close()
 								sm.logger.Debug("condition not matched, skipping", zap.String("name", md.Key.Name))
 								return nil
 							}
@@ -229,7 +228,7 @@ func (sm *signalToMetrics) ConsumeLogs(ctx context.Context, logs plog.Logs) erro
 
 					// The transform context is created from original attributes so that the
 					// OTTL expressions are also applied on the original attributes.
-					tCtx := ottllog.NewTransformContextPtr(log, scopeLog.Scope(), resourceLog.Resource(), scopeLog, resourceLog)
+					tCtx := ottllog.NewTransformContextPtr(resourceLog, scopeLog, log)
 					if md.Conditions != nil {
 						match, err := md.Conditions.Eval(ctx, tCtx)
 						if err != nil {
